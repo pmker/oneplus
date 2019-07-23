@@ -1,4 +1,4 @@
-package nights_watch
+package watch
 
 import (
 	"context"
