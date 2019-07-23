@@ -10,7 +10,7 @@ import (
 	"github.com/koinotice/oneplus/watch/blockwatch"
 	"github.com/koinotice/oneplus/watch/plugin"
 	"github.com/koinotice/oneplus/watch/structs"
-	 
+
 
 	"github.com/sirupsen/logrus"
 	"path/filepath"
@@ -60,7 +60,7 @@ const (
 	checkNewAddrInterval       = 20 * time.Second
 	expirationPollingInterval  = 50 * time.Millisecond
 	BlockPollingInterval       = 5 * time.Second
-	EthereumRPCURL             = "https://rinkeby.infura.io/v3/cabc724fb9534d1bb245582a74ccf3e7"
+	EthereumRPCURL             = "https://kovan.infura.io/v3/19d753b2600445e292d54b1ef58d4df4"
 )
 
 type Watch struct{
@@ -156,5 +156,7 @@ func main() {
 
 
 	}
+
+	go watch.setupEventWatcher()
 	select {}
 }
