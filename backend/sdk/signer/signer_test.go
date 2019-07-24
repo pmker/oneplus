@@ -1,9 +1,9 @@
 package signer
 
 import (
-	"github.com/koinotice/oneplus/backend/sdk/crypto"
-	"github.com/koinotice/oneplus/backend/sdk/types"
-	"github.com/koinotice/oneplus/backend/utils"
+	"github.com/pmker/oneplus/backend/sdk/crypto"
+	"github.com/pmker/oneplus/backend/sdk/types"
+	"github.com/pmker/oneplus/backend/utils"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"

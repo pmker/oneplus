@@ -1,6 +1,6 @@
 package websocket
 
-import "github.com/koinotice/oneplus/backend/common"
+import "github.com/pmker/oneplus/backend/common"
 
 type IChannel interface {
 	GetID() string

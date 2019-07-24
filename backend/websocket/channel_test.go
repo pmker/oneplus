@@ -1,7 +1,7 @@
 package websocket
 
 import (
-	"github.com/koinotice/oneplus/backend/common"
+	"github.com/pmker/oneplus/backend/common"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"net"

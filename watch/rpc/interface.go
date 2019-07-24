@@ -1,6 +1,6 @@
 package rpc
 
-import "github.com/koinotice/oneplus/backend/sdk"
+import "github.com/pmker/oneplus/backend/sdk"
 
 type IBlockChainRPC interface {
 	GetCurrentBlockNum() (uint64, error)

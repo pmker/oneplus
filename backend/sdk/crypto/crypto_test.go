@@ -1,7 +1,7 @@
 package crypto
 
 import (
-	"github.com/koinotice/oneplus/backend/utils"
+	"github.com/pmker/oneplus/backend/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

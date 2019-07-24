@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/koinotice/oneplus/meshdb"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/pmker/oneplus/meshdb"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -47,6 +47,7 @@ type Config struct {
 	WithLogs            bool
 	Topics              []common.Hash
 	Client              Client
+	Watch               *AbstractWatcher
 }
 
 // Watcher maintains a consistent representation of the latest `blockRetentionLimit` blocks,
@@ -66,6 +67,8 @@ type Watcher struct {
 	withLogs            bool
 	topics              []common.Hash
 	mu                  sync.RWMutex
+	Watch               *AbstractWatcher
+
 }
 
 // New creates a new Watcher instance.
@@ -74,6 +77,7 @@ func New(config Config) *Watcher {
 
 	// Buffer the first 5 errors, if no channel consumer processing the errors, any additional errors are dropped
 	errorsChan := make(chan error, 5)
+
 	bs := &Watcher{
 		Errors:              errorsChan,
 		pollingInterval:     config.PollingInterval,
@@ -83,6 +87,7 @@ func New(config Config) *Watcher {
 		client:              config.Client,
 		withLogs:            config.WithLogs,
 		topics:              config.Topics,
+		Watch:               config.Watch,
 	}
 	return bs
 }
@@ -193,7 +198,7 @@ func (w *Watcher) pollNextBlock() error {
 	nextHeader, err := w.client.HeaderByNumber(nextBlockNumber)
 
 	//fmt.Printf("new gateway number %s \n",nextBlockNumber)
- 	if err != nil {
+	if err != nil {
 
 		if err == ethereum.NotFound {
 			log.WithFields(log.Fields{

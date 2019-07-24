@@ -3,8 +3,8 @@ package websocket
 import (
 	"context"
 	"encoding/json"
-	"github.com/koinotice/oneplus/backend/common"
-	"github.com/koinotice/oneplus/backend/utils"
+	"github.com/pmker/oneplus/backend/common"
+	"github.com/pmker/oneplus/backend/utils"
 )
 
 // StartConsumer initializes a queue instance and ready events from it

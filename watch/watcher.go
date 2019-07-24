@@ -1,81 +1,75 @@
 package watch
 
 import (
-	"container/list"
-	"context"
-	"errors"
 	"fmt"
-	"github.com/koinotice/oneplus/backend/sdk"
-	"github.com/koinotice/oneplus/watch/plugin"
-	"github.com/koinotice/oneplus/watch/rpc"
-	"github.com/koinotice/oneplus/watch/structs"
+	"github.com/pmker/oneplus/backend/sdk"
+	"github.com/pmker/oneplus/watch/plugin"
+	"github.com/pmker/oneplus/watch/structs"
 	"github.com/sirupsen/logrus"
-	"sync"
-	"time"
 )
+//
+//type AbstractWatcher1 struct {
+//	Rpc rpc.IBlockChainRPC
+//
+//	//Ctx  context.Context
+//	lock sync.RWMutex
+//
+//	NewBlockChan        chan *structs.RemovableBlock
+//	NewTxAndReceiptChan chan *structs.RemovableTxAndReceipt
+//	NewReceiptLogChan   chan *structs.RemovableReceiptLog
+//
+//	SyncedBlocks         *list.List
+//	SyncedTxAndReceipts  *list.List
+//	MaxSyncedBlockToKeep int
+//
+//	BlockPlugins      []plugin.IBlockPlugin
+//	TxPlugins         []plugin.ITxPlugin
+//	TxReceiptPlugins  []plugin.ITxReceiptPlugin
+//	ReceiptLogPlugins []plugin.IReceiptLogPlugin
+//
+//	ReceiptCatchUpFromBlock uint64
+//}
+//
+//func NewHttpBasedEthWatcher( api string) *Watcher {
+//	rpc := rpc.NewEthRPCWithRetry(api, 5)
+//
+//	return &Watcher{
+//		//Ctx:                  ctx,
+//		Rpc:                  rpc,
+//		NewBlockChan:         make(chan *structs.RemovableBlock, 32),
+//		NewTxAndReceiptChan:  make(chan *structs.RemovableTxAndReceipt, 518),
+//		NewReceiptLogChan:    make(chan *structs.RemovableReceiptLog, 518),
+//		SyncedBlocks:         list.New(),
+//		SyncedTxAndReceipts:  list.New(),
+//		MaxSyncedBlockToKeep: 64,
+//	}
+//}
 
-type AbstractWatcher struct {
-	rpc rpc.IBlockChainRPC
-
-	Ctx  context.Context
-	lock sync.RWMutex
-
-	NewBlockChan        chan *structs.RemovableBlock
-	NewTxAndReceiptChan chan *structs.RemovableTxAndReceipt
-	NewReceiptLogChan   chan *structs.RemovableReceiptLog
-
-	SyncedBlocks         *list.List
-	SyncedTxAndReceipts  *list.List
-	MaxSyncedBlockToKeep int
-
-	BlockPlugins      []plugin.IBlockPlugin
-	TxPlugins         []plugin.ITxPlugin
-	TxReceiptPlugins  []plugin.ITxReceiptPlugin
-	ReceiptLogPlugins []plugin.IReceiptLogPlugin
-
-	ReceiptCatchUpFromBlock uint64
-}
-
-func NewHttpBasedEthWatcher(ctx context.Context, api string) *AbstractWatcher {
-	rpc := rpc.NewEthRPCWithRetry(api, 5)
-
-	return &AbstractWatcher{
-		Ctx:                  ctx,
-		rpc:                  rpc,
-		NewBlockChan:         make(chan *structs.RemovableBlock, 32),
-		NewTxAndReceiptChan:  make(chan *structs.RemovableTxAndReceipt, 518),
-		NewReceiptLogChan:    make(chan *structs.RemovableReceiptLog, 518),
-		SyncedBlocks:         list.New(),
-		SyncedTxAndReceipts:  list.New(),
-		MaxSyncedBlockToKeep: 64,
-	}
-}
-
-func (watcher *AbstractWatcher) RegisterBlockPlugin(plugin plugin.IBlockPlugin) {
+func (watcher *Watcher) RegisterBlockPlugin(plugin plugin.IBlockPlugin) {
 	watcher.BlockPlugins = append(watcher.BlockPlugins, plugin)
 }
 
-func (watcher *AbstractWatcher) RegisterTxPlugin(plugin plugin.ITxPlugin) {
+func (watcher *Watcher) RegisterTxPlugin(plugin plugin.ITxPlugin) {
 	watcher.TxPlugins = append(watcher.TxPlugins, plugin)
 }
 
-func (watcher *AbstractWatcher) RegisterTxReceiptPlugin(plugin plugin.ITxReceiptPlugin) {
+func (watcher *Watcher) RegisterTxReceiptPlugin(plugin plugin.ITxReceiptPlugin) {
 	watcher.TxReceiptPlugins = append(watcher.TxReceiptPlugins, plugin)
 }
 
-func (watcher *AbstractWatcher) RegisterReceiptLogPlugin(plugin plugin.IReceiptLogPlugin) {
+func (watcher *Watcher) RegisterReceiptLogPlugin(plugin plugin.IReceiptLogPlugin) {
 	watcher.ReceiptLogPlugins = append(watcher.ReceiptLogPlugins, plugin)
 }
 
 // start sync from latest block
-func (watcher *AbstractWatcher) RunTillExit() error {
-	return watcher.RunTillExitFromBlock(0)
-}
+//func (watcher *Watcher) RunTillExit() error {
+//	return watcher.RunTillExitFromBlock(0)
+//}
 
 // start sync from given block
 // 0 means start from latest block
-func (watcher *AbstractWatcher) RunTillExitFromBlock(startBlockNum uint64) error {
-	wg := sync.WaitGroup{}
+func (watcher *Watcher) Run() error {
+	wg := &watcher.PluginWG//.WaitGroup{}
 
 	wg.Add(1)
 	go func() {
@@ -145,77 +139,10 @@ func (watcher *AbstractWatcher) RunTillExitFromBlock(startBlockNum uint64) error
 		wg.Done()
 	}()
 
-	for {
-		latestBlockNum, err := watcher.rpc.GetCurrentBlockNum()
-		if err != nil {
-			return err
-		}
-
-		if startBlockNum <= 0 {
-			startBlockNum = latestBlockNum
-		}
-
-		noNewBlockForSync := watcher.LatestSyncedBlockNum() >= latestBlockNum
-		logrus.Infoln("watcher.LatestSyncedBlockNum()", watcher.LatestSyncedBlockNum())
-
-		for watcher.LatestSyncedBlockNum() < latestBlockNum {
-			select {
-			case <-watcher.Ctx.Done():
-				logrus.Info("watcher context down, closing channels to exit...")
-				close(watcher.NewBlockChan)
-				close(watcher.NewTxAndReceiptChan)
-				close(watcher.NewReceiptLogChan)
-
-				wg.Wait()
-
-				logrus.Info("watcher done!")
-				return nil
-			default:
-				var newBlockNumToSync uint64
-				if watcher.LatestSyncedBlockNum() <= 0 {
-					newBlockNumToSync = startBlockNum
-				} else {
-					newBlockNumToSync = watcher.LatestSyncedBlockNum() + 1
-				}
-
-				logrus.Debugln("newBlockNumToSync:", newBlockNumToSync)
-
-				newBlock, err := watcher.rpc.GetBlockByNum(newBlockNumToSync)
-				if err != nil {
-					return err
-				}
-
-				if newBlock == nil {
-					msg := fmt.Sprintf("GetBlockByNum(%d) returns nil block", newBlockNumToSync)
-					return errors.New(msg)
-				}
-
-				if watcher.FoundFork(newBlock) {
-					logrus.Infoln("found fork, popping")
-					err = watcher.popBlocksUntilReachMainChain()
-				} else {
-					logrus.Infoln("adding new block:", newBlock.Number())
-					err = watcher.addNewBlock(structs.NewRemovableBlock(newBlock, false), latestBlockNum)
-				}
-
-				if err != nil {
-					return err
-				}
-
-			}
-
-			if noNewBlockForSync {
-				logrus.Infoln("no new block to sync, sleep for 3 secs")
-
-				// sleep for 3 secs
-				timer := time.NewTimer(3 * time.Second)
-				<-timer.C
-			}
-		}
-	}
+	return nil
 }
 
-func (watcher *AbstractWatcher) LatestSyncedBlockNum() uint64 {
+func (watcher *Watcher) LatestSyncedBlockNum() uint64 {
 	watcher.lock.RLock()
 	defer watcher.lock.RUnlock()
 
@@ -231,7 +158,7 @@ func (watcher *AbstractWatcher) LatestSyncedBlockNum() uint64 {
 // go thru plugins to check if this watcher need fetch receipt for tx
 // network load for fetching receipts per tx is heavy,
 // we use this method to make sure we only do the work we need
-func (watcher *AbstractWatcher) needReceipt(tx sdk.Transaction) bool {
+func (watcher *Watcher) needReceipt(tx sdk.Transaction) bool {
 	plugins := watcher.TxReceiptPlugins
 
 	for _, p := range plugins {
@@ -249,7 +176,7 @@ func (watcher *AbstractWatcher) needReceipt(tx sdk.Transaction) bool {
 }
 
 // return query map: contractAddress -> interested 1stTopics
-func (watcher *AbstractWatcher) getReceiptLogQueryMap() (queryMap map[string][]string) {
+func (watcher *Watcher) getReceiptLogQueryMap() (queryMap map[string][]string) {
 	queryMap = make(map[string][]string, 16)
 
 	for _, p := range watcher.ReceiptLogPlugins {
@@ -265,7 +192,7 @@ func (watcher *AbstractWatcher) getReceiptLogQueryMap() (queryMap map[string][]s
 	return
 }
 
-func (watcher *AbstractWatcher) addNewBlock(block *structs.RemovableBlock, curHighestBlockNum uint64) error {
+func (watcher *Watcher) AddNewBlock(block *structs.RemovableBlock, curHighestBlockNum uint64) error {
 	watcher.lock.Lock()
 	defer watcher.lock.Unlock()
 
@@ -287,7 +214,7 @@ func (watcher *AbstractWatcher) addNewBlock(block *structs.RemovableBlock, curHi
 		signals = append(signals, sig)
 
 		go func() {
-			txReceipt, err := watcher.rpc.GetTransactionReceipt(tx.GetHash())
+			txReceipt, err := watcher.Rpc.GetTransactionReceipt(tx.GetHash())
 
 			if err != nil {
 				fmt.Printf("GetTransactionReceipt fail, err: %s", err)
@@ -390,9 +317,9 @@ func (watcher *AbstractWatcher) addNewBlock(block *structs.RemovableBlock, curHi
 	return nil
 }
 
-func (watcher *AbstractWatcher) fetchReceiptLogs(isRemoved bool, block sdk.Block, from, to uint64, address string, topics []string) error {
+func (watcher *Watcher) fetchReceiptLogs(isRemoved bool, block sdk.Block, from, to uint64, address string, topics []string) error {
 
-	receiptLogs, err := watcher.rpc.GetLogs(from, to, address, topics)
+	receiptLogs, err := watcher.Rpc.GetLogs(from, to, address, topics)
 	if err != nil {
 		return err
 	}
@@ -442,7 +369,7 @@ func (s *SyncSignal) WaitDone() {
 	<-s.jobDone
 }
 
-func (watcher *AbstractWatcher) popBlocksUntilReachMainChain() error {
+func (watcher *Watcher) PopBlocksUntilReachMainChain() error {
 	watcher.lock.Lock()
 	defer watcher.lock.Unlock()
 
@@ -453,7 +380,7 @@ func (watcher *AbstractWatcher) popBlocksUntilReachMainChain() error {
 
 		// NOTE: instead of watcher.LatestSyncedBlockNum() cuz it has lock
 		lastSyncedBlock := watcher.SyncedBlocks.Back().Value.(sdk.Block)
-		block, err := watcher.rpc.GetBlockByNum(lastSyncedBlock.Number())
+		block, err := watcher.Rpc.GetBlockByNum(lastSyncedBlock.Number())
 		if err != nil {
 			return err
 		}
@@ -484,7 +411,7 @@ func (watcher *AbstractWatcher) popBlocksUntilReachMainChain() error {
 	}
 }
 
-func (watcher *AbstractWatcher) FoundFork(newBlock sdk.Block) bool {
+func (watcher *Watcher) FoundFork(newBlock sdk.Block) bool {
 	for e := watcher.SyncedBlocks.Back(); e != nil; e = e.Prev() {
 		syncedBlock := e.Value.(sdk.Block)
 

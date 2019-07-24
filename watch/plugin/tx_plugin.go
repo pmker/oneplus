@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"github.com/koinotice/oneplus/watch/structs"
+	"github.com/pmker/oneplus/watch/structs"
 )
 
 type ITxPlugin interface {

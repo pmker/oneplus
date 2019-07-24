@@ -2,8 +2,8 @@ package watcher
 
 import (
 	"context"
-	"github.com/koinotice/oneplus/backend/common"
-	"github.com/koinotice/oneplus/backend/sdk"
+	"github.com/pmker/oneplus/backend/common"
+	"github.com/pmker/oneplus/backend/sdk"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )

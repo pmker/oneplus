@@ -5,7 +5,7 @@ debug.test
 debug
 *.db
 main
-vendor
+//vendor
 .env
 .vscode
 

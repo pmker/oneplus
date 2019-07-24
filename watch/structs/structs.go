@@ -1,6 +1,6 @@
 package structs
 
-import "github.com/koinotice/oneplus/backend/sdk"
+import "github.com/pmker/oneplus/backend/sdk"
 
 type RemovableBlock struct {
 	sdk.Block

@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/koinotice/oneplus/backend/sdk"
-	"github.com/koinotice/oneplus/backend/sdk/crypto"
-	"github.com/koinotice/oneplus/backend/utils"
+	"github.com/pmker/oneplus/backend/sdk"
+	"github.com/pmker/oneplus/backend/sdk/crypto"
+	"github.com/pmker/oneplus/backend/utils"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/suite"
 )
