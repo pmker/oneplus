@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"github.com/onrik/ethrpc"
 	"github.com/pmker/oneplus/backend/sdk"
 	"github.com/pmker/oneplus/backend/sdk/ethereum"
 	"github.com/pmker/oneplus/watch/structs"
@@ -46,10 +47,10 @@ func (p TxReceiptPlugin) Accept(tx *structs.RemovableTxAndReceipt) {
 }
 
 type ERC20TransferPlugin struct {
-	callback func(tokenAddress, from, to string, amount decimal.Decimal, isRemoved bool)
+	callback func(tokenAddress, from, to string, amount decimal.Decimal, isRemoved bool,log ethrpc.Log)
 }
 
-func NewERC20TransferPlugin(callback func(tokenAddress, from, to string, amount decimal.Decimal, isRemoved bool)) *ERC20TransferPlugin {
+func NewERC20TransferPlugin(callback func(tokenAddress, from, to string, amount decimal.Decimal, isRemoved bool,log ethrpc.Log)) *ERC20TransferPlugin {
 	return &ERC20TransferPlugin{callback}
 }
 
@@ -58,7 +59,7 @@ func (p *ERC20TransferPlugin) Accept(tx *structs.RemovableTxAndReceipt) {
 		events := extractERC20TransfersIfExist(tx)
 
 		for _, e := range events {
-			p.callback(e.token, e.from, e.to, e.value, tx.IsRemoved)
+			p.callback(e.token, e.from, e.to, e.value, tx.IsRemoved, e.log)
 		}
 	}
 }
@@ -68,6 +69,7 @@ type TransferEvent struct {
 	from  string
 	to    string
 	value decimal.Decimal
+	log  ethrpc.Log
 }
 
 func extractERC20TransfersIfExist(r *structs.RemovableTxAndReceipt) (rst []TransferEvent) {
@@ -79,11 +81,12 @@ func extractERC20TransfersIfExist(r *structs.RemovableTxAndReceipt) (rst []Trans
 			if len(log.Topics) == 3 && log.Topics[0] == transferEventSig {
 				from := log.Topics[1]
 				to := log.Topics[2]
+				//fmt.Printf("is log %v",log)
 
 				amount, ok := HexToDecimal(log.Data)
 
 				if ok {
-					rst = append(rst, TransferEvent{log.Address, from, to, amount})
+					rst = append(rst, TransferEvent{log.Address, from, to, amount,log})
 				}
 			}
 		}

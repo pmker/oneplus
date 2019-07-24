@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/onrik/ethrpc"
 	"github.com/pmker/oneplus/watch"
 	"github.com/pmker/oneplus/watch/plugin"
-	"github.com/pmker/oneplus/watch/structs"
 	"github.com/shopspring/decimal"
 
 	"github.com/sirupsen/logrus"
@@ -185,20 +185,20 @@ import (
 func main() {
 	Watcher, err1 := watch.NewWatch()
 
-	Watcher.RegisterBlockPlugin(plugin.NewBlockNumPlugin(func(i uint64, b bool) {
-		fmt.Println(">>", i, b)
-	}))
+	//Watcher.RegisterBlockPlugin(plugin.NewBlockNumPlugin(func(i uint64, b bool) {
+	//	fmt.Println(">>", i, b)
+	//}))
+	//
+	//Watcher.RegisterTxReceiptPlugin(plugin.NewTxReceiptPlugin(func(txAndReceipt *structs.RemovableTxAndReceipt) {
+	//	if txAndReceipt.IsRemoved {
+	//		fmt.Println("Removed >>", txAndReceipt.Tx.GetHash(), txAndReceipt.Receipt.GetTxIndex())
+	//	} else {
+	//		fmt.Println("Adding >>", txAndReceipt.Tx.GetHash(), txAndReceipt.Receipt.GetTxIndex())
+	//	}
+	//}))
 
-	Watcher.RegisterTxReceiptPlugin(plugin.NewTxReceiptPlugin(func(txAndReceipt *structs.RemovableTxAndReceipt) {
-		if txAndReceipt.IsRemoved {
-			fmt.Println("Removed >>", txAndReceipt.Tx.GetHash(), txAndReceipt.Receipt.GetTxIndex())
-		} else {
-			fmt.Println("Adding >>", txAndReceipt.Tx.GetHash(), txAndReceipt.Receipt.GetTxIndex())
-		}
-	}))
-
-	Watcher.RegisterTxReceiptPlugin(plugin.NewERC20TransferPlugin(func(token, from, to string, amount decimal.Decimal, isRemove bool) {
-		fmt.Println("New ERC20 Transfer >>", token, from, "->", to, amount, isRemove)
+	Watcher.RegisterTxReceiptPlugin(plugin.NewERC20TransferPlugin(func(token, from, to string, amount decimal.Decimal, isRemove bool,log ethrpc.Log) {
+		fmt.Println("New ERC20 Transfer >>", token, from, "->", to, amount, isRemove,log)
 	}))
 	if err1 != nil {
 		fmt.Printf(err1.Error())
