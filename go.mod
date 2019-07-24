@@ -6,6 +6,7 @@ require (
 	github.com/albrow/stringset v2.1.0+incompatible
 	github.com/btcsuite/btcd v0.0.0-20190629003639-c26ffa870fd8
 	github.com/cevaris/ordered_map v0.0.0-20190319150403-3adeae072e73
+	github.com/dgraph-io/badger v1.6.0-rc1
 	github.com/ethereum/go-ethereum v1.9.0
 	github.com/go-redis/redis v6.15.3+incompatible
 	github.com/google/uuid v1.1.1
@@ -20,6 +21,7 @@ require (
 	github.com/stretchr/testify v1.3.0
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tidwall/gjson v1.3.2
+	go.etcd.io/bbolt v1.3.3
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
 )
 
@@ -52,5 +54,3 @@ replace (
 	google.golang.org/genproto => github.com/google/go-genproto v0.0.0-20190401181712-f467c93bbac2
 	google.golang.org/grpc => github.com/grpc/grpc-go v1.19.1
 )
-
-// replace github.com/pmker/oneplus/backend => ../hydro-sdk-backend
