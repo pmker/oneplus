@@ -4,7 +4,7 @@ import (
 	"container/list"
 	"errors"
 	"fmt"
- 	"github.com/pmker/oneplus/watch/plugin"
+	"github.com/pmker/oneplus/watch/plugin"
 	"github.com/pmker/oneplus/watch/structs"
 	"math/big"
 	"sync"
@@ -30,18 +30,18 @@ var maxBlocksInGetLogsQuery = 60
 // EventType describes the types of events emitted by blockwatch.Watcher. A gateway can be discovered
 // and added to our representation of the chain. During a gateway re-org, a gateway previously stored
 // can be removed from the list.
-type EventType int
-
-const (
-	Added EventType = iota
-	Removed
-)
-
-// Event describes a gateway event emitted by a Watcher
-type Event struct {
-	Type        EventType
-	BlockHeader *meshdb.MiniHeader
-}
+//type EventType int
+//
+//const (
+//	Added EventType = iota
+//	Removed
+//)
+//
+//// Event describes a gateway event emitted by a Watcher
+//type Event struct {
+//	Type        EventType
+//	BlockHeader *meshdb.MiniHeader
+//}
 
 // Config holds some configuration options for an instance of BlockWatcher.
 type Config struct {
@@ -53,7 +53,7 @@ type Config struct {
 	Topics              []common.Hash
 	Client              Client
 	Watch               *AbstractWatcher
-	RpcURL string
+	RpcURL              string
 }
 
 // Watcher maintains a consistent representation of the latest `blockRetentionLimit` blocks,
@@ -73,7 +73,7 @@ type Watcher struct {
 	withLogs            bool
 	topics              []common.Hash
 	mu                  sync.RWMutex
-	Rpc  rpc2.IBlockChainRPC
+	Rpc                 rpc2.IBlockChainRPC
 
 	//Ctx  context.Context
 	lock sync.RWMutex
@@ -81,6 +81,7 @@ type Watcher struct {
 	NewBlockChan        chan *structs.RemovableBlock
 	NewTxAndReceiptChan chan *structs.RemovableTxAndReceipt
 	NewReceiptLogChan   chan *structs.RemovableReceiptLog
+	NewEventLog         chan *structs.Event
 
 	SyncedBlocks         *list.List
 	SyncedTxAndReceipts  *list.List
@@ -90,17 +91,16 @@ type Watcher struct {
 	TxPlugins         []plugin.ITxPlugin
 	TxReceiptPlugins  []plugin.ITxReceiptPlugin
 	ReceiptLogPlugins []plugin.IReceiptLogPlugin
+	EventPlugins      []plugin.IEventPlugin
+
 	ReceiptCatchUpFromBlock uint64
 
 	PluginWG sync.WaitGroup
 
 	blockSubscription event.Subscription
-
-
 }
 
 type AbstractWatcher struct {
-
 }
 
 // New creates a new Watcher instance.
@@ -112,18 +112,19 @@ func New(config Config) *Watcher {
 	rpc := rpc2.NewEthRPCWithRetry(config.RpcURL, 5)
 
 	bs := &Watcher{
-		Errors:              errorsChan,
-		pollingInterval:     config.PollingInterval,
-		blockRetentionLimit: config.BlockRetentionLimit,
-		startBlockDepth:     config.StartBlockDepth,
-		stack:               stack,
-		client:              config.Client,
-		withLogs:            config.WithLogs,
-		topics:              config.Topics,
+		Errors:               errorsChan,
+		pollingInterval:      config.PollingInterval,
+		blockRetentionLimit:  config.BlockRetentionLimit,
+		startBlockDepth:      config.StartBlockDepth,
+		stack:                stack,
+		client:               config.Client,
+		withLogs:             config.WithLogs,
+		topics:               config.Topics,
 		Rpc:                  rpc,
 		NewBlockChan:         make(chan *structs.RemovableBlock, 32),
 		NewTxAndReceiptChan:  make(chan *structs.RemovableTxAndReceipt, 518),
 		NewReceiptLogChan:    make(chan *structs.RemovableReceiptLog, 518),
+		NewEventLog:    make(chan *structs.Event, 518),
 		SyncedBlocks:         list.New(),
 		SyncedTxAndReceipts:  list.New(),
 		MaxSyncedBlockToKeep: 64,
@@ -156,7 +157,6 @@ func (w *Watcher) Start() error {
 	go w.Run()
 	return nil
 }
-
 
 //
 //func (w *Watcher) setupEventWatcher() {
@@ -213,8 +213,6 @@ func (w *Watcher) Start() error {
 //	}()
 //}
 
-
-
 func (w *Watcher) startPollingLoop() {
 	for {
 		w.mu.Lock()
@@ -266,7 +264,7 @@ func (w *Watcher) Stop() {
 // To unsubscribe, simply call `Unsubscribe` on the returned subscription.
 // The sink channel should have ample buffer space to avoid blocking other subscribers.
 // Slow subscribers are not dropped.
-func (w *Watcher) Subscribe(sink chan<- []*Event) event.Subscription {
+func (w *Watcher) Subscribe(sink chan<- []*structs.Event) event.Subscription {
 	return w.blockScope.Track(w.blockFeed.Subscribe(sink))
 }
 
@@ -308,7 +306,7 @@ func (w *Watcher) pollNextBlock() error {
 		return err
 	}
 
-	events := []*Event{}
+	events := []*structs.Event{}
 	events, err = w.buildCanonicalChain(nextHeader, events)
 	// Even if an error occurred, we still want to emit the events gathered since we might have
 	// popped blocks off the Stack and they won't be re-added
@@ -321,7 +319,7 @@ func (w *Watcher) pollNextBlock() error {
 	return nil
 }
 
-func (w *Watcher) buildCanonicalChain(nextHeader *meshdb.MiniHeader, events []*Event) ([]*Event, error) {
+func (w *Watcher) buildCanonicalChain(nextHeader *meshdb.MiniHeader, events []*structs.Event) ([]*structs.Event, error) {
 	latestHeader, err := w.stack.Peek()
 	if err != nil {
 		return nil, err
@@ -346,8 +344,8 @@ func (w *Watcher) buildCanonicalChain(nextHeader *meshdb.MiniHeader, events []*E
 		if err != nil {
 			return events, err
 		}
-		events = append(events, &Event{
-			Type:        Added,
+		events = append(events, &structs.Event{
+			Type:        structs.Added,
 			BlockHeader: nextHeader,
 		})
 		return events, nil
@@ -357,8 +355,8 @@ func (w *Watcher) buildCanonicalChain(nextHeader *meshdb.MiniHeader, events []*E
 	if _, err := w.stack.Pop(); err != nil {
 		return events, err
 	}
-	events = append(events, &Event{
-		Type:        Removed,
+	events = append(events, &structs.Event{
+		Type:        structs.Removed,
 		BlockHeader: latestHeader,
 	})
 
@@ -396,8 +394,8 @@ func (w *Watcher) buildCanonicalChain(nextHeader *meshdb.MiniHeader, events []*E
 	if err != nil {
 		return events, err
 	}
-	events = append(events, &Event{
-		Type:        Added,
+	events = append(events, &structs.Event{
+		Type:        structs.Added,
 		BlockHeader: nextHeader,
 	})
 
@@ -428,8 +426,8 @@ func (w *Watcher) addLogs(header *meshdb.MiniHeader) (*meshdb.MiniHeader, error)
 // offline. It does this by comparing the last gateway stored with the latest gateway discoverable via RPC.
 // If the stored gateway is older then the latest gateway, it batch fetches the events for missing blocks,
 // re-sets the stored blocks and returns the gateway events found.
-func (w *Watcher) getMissedEventsToBackfill() ([]*Event, error) {
-	events := []*Event{}
+func (w *Watcher) getMissedEventsToBackfill() ([]*structs.Event, error) {
+	events := []*structs.Event{}
 
 	latestRetainedBlock, err := w.stack.Peek()
 	if err != nil {
@@ -500,8 +498,8 @@ func (w *Watcher) getMissedEventsToBackfill() ([]*Event, error) {
 			blockHeader.Logs = append(blockHeader.Logs, log)
 		}
 		for _, blockHeader := range hashToBlockHeader {
-			events = append(events, &Event{
-				Type:        Added,
+			events = append(events, &structs.Event{
+				Type:        structs.Added,
 				BlockHeader: blockHeader,
 			})
 		}
@@ -710,4 +708,3 @@ func (w *Watcher) filterLogsRecurisively(from, to int, allLogs []types.Log) ([]t
 	allLogs = append(allLogs, logs...)
 	return allLogs, nil
 }
-

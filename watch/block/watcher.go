@@ -23,6 +23,7 @@ type AbstractWatcher struct {
 	NewBlockChan        chan *structs.RemovableBlock
 	NewTxAndReceiptChan chan *structs.RemovableTxAndReceipt
 	NewReceiptLogChan   chan *structs.RemovableReceiptLog
+	NewEventLogChan     chan *structs.Event
 
 	SyncedBlocks         *list.List
 	SyncedTxAndReceipts  *list.List
@@ -32,6 +33,7 @@ type AbstractWatcher struct {
 	TxPlugins         []plugin.ITxPlugin
 	TxReceiptPlugins  []plugin.ITxReceiptPlugin
 	ReceiptLogPlugins []plugin.IReceiptLogPlugin
+	EventPlugins []plugin.IEventPlugin
 
 	ReceiptCatchUpFromBlock uint64
 }
@@ -45,6 +47,7 @@ func NewHttpBasedEthWatcher(ctx context.Context, api string) *AbstractWatcher {
 		NewBlockChan:         make(chan *structs.RemovableBlock, 32),
 		NewTxAndReceiptChan:  make(chan *structs.RemovableTxAndReceipt, 518),
 		NewReceiptLogChan:    make(chan *structs.RemovableReceiptLog, 518),
+		NewEventLogChan:      make(chan *structs.Event, 518),
 		SyncedBlocks:         list.New(),
 		SyncedTxAndReceipts:  list.New(),
 		MaxSyncedBlockToKeep: 64,
@@ -65,6 +68,9 @@ func (watcher *AbstractWatcher) RegisterTxReceiptPlugin(plugin plugin.ITxReceipt
 
 func (watcher *AbstractWatcher) RegisterReceiptLogPlugin(plugin plugin.IReceiptLogPlugin) {
 	watcher.ReceiptLogPlugins = append(watcher.ReceiptLogPlugins, plugin)
+}
+func (watcher *AbstractWatcher) RegisterEventPlugin(plugin plugin.IEventPlugin) {
+	watcher.EventPlugins = append(watcher.EventPlugins, plugin)
 }
 
 // start sync from latest block

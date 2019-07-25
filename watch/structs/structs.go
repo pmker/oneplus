@@ -1,6 +1,9 @@
 package structs
 
-import "github.com/pmker/oneplus/backend/sdk"
+import (
+	"github.com/pmker/oneplus/backend/sdk"
+	"github.com/pmker/oneplus/meshdb"
+)
 
 type RemovableBlock struct {
 	sdk.Block
@@ -23,6 +26,20 @@ type RemovableTxAndReceipt struct {
 	*TxAndReceipt
 	IsRemoved bool
 	TimeStamp uint64
+}
+
+
+type EventType int
+
+const (
+	Added EventType = iota
+	Removed
+)
+
+// Event describes a gateway event emitted by a Watcher
+type Event struct {
+	Type        EventType
+	BlockHeader *meshdb.MiniHeader
 }
 
 type RemovableReceiptLog struct {

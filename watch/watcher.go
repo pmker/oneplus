@@ -7,6 +7,7 @@ import (
 	"github.com/pmker/oneplus/watch/structs"
 	"github.com/sirupsen/logrus"
 )
+
 //
 //type AbstractWatcher1 struct {
 //	Rpc rpc.IBlockChainRPC
@@ -61,6 +62,10 @@ func (watcher *Watcher) RegisterReceiptLogPlugin(plugin plugin.IReceiptLogPlugin
 	watcher.ReceiptLogPlugins = append(watcher.ReceiptLogPlugins, plugin)
 }
 
+
+func (watcher *Watcher) RegisterEventPlugin(plugin plugin.IEventPlugin) {
+	watcher.EventPlugins = append(watcher.EventPlugins, plugin)
+}
 // start sync from latest block
 //func (watcher *Watcher) RunTillExit() error {
 //	return watcher.RunTillExitFromBlock(0)
@@ -69,7 +74,7 @@ func (watcher *Watcher) RegisterReceiptLogPlugin(plugin plugin.IReceiptLogPlugin
 // start sync from given block
 // 0 means start from latest block
 func (watcher *Watcher) Run() error {
-	wg := &watcher.PluginWG//.WaitGroup{}
+	wg := &watcher.PluginWG //.WaitGroup{}
 
 	wg.Add(1)
 	go func() {
@@ -91,6 +96,8 @@ func (watcher *Watcher) Run() error {
 					txPlugin.AcceptTx(tx)
 				}
 			}
+
+
 		}
 
 		wg.Done()
@@ -138,6 +145,29 @@ func (watcher *Watcher) Run() error {
 
 		wg.Done()
 	}()
+	//
+	//wg.Add(1)
+	//go func() {
+	//	for event := range watcher.NewEventLog {
+	//		 logrus.Info("get receipt log from chan: %+v", event.BlockHeader)
+	//
+	//		eventPlugins := watcher.EventPlugins
+	//		for i := 0; i < len(eventPlugins); i++ {
+	//			p := eventPlugins[i]
+	//			p.AcceptEvent(event)
+	//			logrus.Debugln("receipt log accepted")
+	//			//
+	//			//if p.NeedReceiptLog(removableReceiptLog) {
+	//			//	logrus.Debugln("receipt log accepted")
+	//			//	p.Accept(removableReceiptLog)
+	//			//} else {
+	//			//	logrus.Debugln("receipt log not accepted")
+	//			//}
+	//		}
+	//	}
+	//
+	//	wg.Done()
+	//}()
 
 	return nil
 }
@@ -192,7 +222,7 @@ func (watcher *Watcher) getReceiptLogQueryMap() (queryMap map[string][]string) {
 	return
 }
 
-func (watcher *Watcher) AddNewBlock(block *structs.RemovableBlock, curHighestBlockNum uint64) error {
+func (watcher *Watcher) AddNewBlock(block *structs.RemovableBlock, curHighestBlockNum uint64, event *structs.Event) error {
 	watcher.lock.Lock()
 	defer watcher.lock.Unlock()
 
@@ -314,6 +344,8 @@ func (watcher *Watcher) AddNewBlock(block *structs.RemovableBlock, curHighestBlo
 	watcher.SyncedBlocks.PushBack(block.Block)
 	watcher.NewBlockChan <- block
 
+	fmt.Printf("%v",event)
+	 watcher.NewEventLog <- event
 	return nil
 }
 

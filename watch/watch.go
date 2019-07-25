@@ -71,7 +71,7 @@ func NewWatch() (*Watcher, error) {
 func (w *Watcher) Listen() error {
 
 	w.Start()
-	blockEvents := make(chan []*Event, 1)
+	blockEvents := make(chan []*structs.Event, 1)
 	w.blockSubscription = w.Subscribe(blockEvents)
 
 	go func() {
@@ -112,7 +112,7 @@ func (w *Watcher) Listen() error {
 						err = w.PopBlocksUntilReachMainChain()
 					} else {
 						logrus.Infoln("adding new block:", newBlock.Number())
-						err = w.AddNewBlock(structs.NewRemovableBlock(newBlock, false), latestBlockNum)
+						err = w.AddNewBlock(structs.NewRemovableBlock(newBlock, false), latestBlockNum,event)
 					}
 					fmt.Printf("current block number,%s \n", event.BlockHeader.Number)
 				}

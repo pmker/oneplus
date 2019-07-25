@@ -2,11 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/onrik/ethrpc"
 	"github.com/pmker/oneplus/watch"
 	"github.com/pmker/oneplus/watch/plugin"
-	"github.com/shopspring/decimal"
-
 	"github.com/sirupsen/logrus"
 )
 
@@ -185,9 +182,9 @@ import (
 func main() {
 	Watcher, err1 := watch.NewWatch()
 
-	//Watcher.RegisterBlockPlugin(plugin.NewBlockNumPlugin(func(i uint64, b bool) {
-	//	fmt.Println(">>", i, b)
-	//}))
+	Watcher.RegisterBlockPlugin(plugin.NewBlockNumPlugin(func(i uint64, b bool) {
+		fmt.Println(">>", i, b)
+	}))
 	//
 	//Watcher.RegisterTxReceiptPlugin(plugin.NewTxReceiptPlugin(func(txAndReceipt *structs.RemovableTxAndReceipt) {
 	//	if txAndReceipt.IsRemoved {
@@ -196,10 +193,13 @@ func main() {
 	//		fmt.Println("Adding >>", txAndReceipt.Tx.GetHash(), txAndReceipt.Receipt.GetTxIndex())
 	//	}
 	//}))
+	//
 
-	Watcher.RegisterTxReceiptPlugin(plugin.NewERC20TransferPlugin(func(token, from, to string, amount decimal.Decimal, isRemove bool,log ethrpc.Log) {
-		fmt.Println("New ERC20 Transfer >>", token, from, "->", to, amount, isRemove,log)
-	}))
+	//callback:=plugin.NewEventHashPlugin(func(event *structs.Event) {
+	//	fmt.Printf("%v",event)
+	//})
+	//
+	//Watcher.RegisterEventPlugin(callback)
 	if err1 != nil {
 		fmt.Printf(err1.Error())
 	}
